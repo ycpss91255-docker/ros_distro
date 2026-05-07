@@ -208,6 +208,37 @@ USER "${USER}"
 
 RUN bats /smoke_test/
 
+############################## build (downstream contract slot) ##############################
+# Empty no-op in upstream ros_distro -- compile your packages here and put the
+# install tree at /opt/ros/install/ so the runtime stage below can COPY it.
+#
+# Downstream usage (in a fork / consumer repo, override this stage):
+#
+#   FROM devel AS build
+#
+#   ARG USER
+#   ARG GROUP
+#
+#   COPY --chown=${USER}:${GROUP} src/ /home/${USER}/work/src/
+#
+#   RUN source /opt/ros/${ROS_DISTRO}/setup.bash && \
+#       cd /home/${USER}/work && \
+#       catkin_make_isolated --install --install-space /opt/ros/install \
+#                            --use-ninja \
+#                            -DCMAKE_BUILD_TYPE=Release
+#
+# `runtime` below `COPY --from=build /opt/ros/install/` so the production
+# image only contains binaries, not src/ / .o / catkin_ws build directory.
+FROM devel AS build
+
+ARG USER
+ARG GROUP
+
+USER root
+RUN mkdir -p /opt/ros/install && \
+    chown -R "${USER}":"${GROUP}" /opt/ros/install
+USER "${USER}"
+
 ############################## runtime-base ##############################
 FROM sys AS runtime-base
 
@@ -224,8 +255,8 @@ FROM runtime-base AS runtime
 
 ARG USER
 
-# Install only the ROS packages required to run your nodes.
-# Customize this list for your application.
+# Baseline ROS runtime libs. Downstream can drop these if their `build`
+# stage already pulls in the right deps via rosdep + COPY.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         "ros-${ROS_DISTRO}-rospy" \
@@ -233,6 +264,11 @@ RUN apt-get update && \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Pull in the install tree produced by the `build` stage. Empty in upstream
+# (build is a no-op); downstream's overridden `build` populates this with
+# their compiled packages.
+COPY --from=build /opt/ros/install/ /opt/ros/install/
 
 COPY --chmod=0755 script/entrypoint.sh /entrypoint.sh
 
