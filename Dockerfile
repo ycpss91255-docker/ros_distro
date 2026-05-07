@@ -243,11 +243,12 @@ USER "${USER}"
 ############################## runtime-base ##############################
 FROM sys AS runtime-base
 
+# tini is missing from xenial's archive (kinetic), but available on focal+;
+# install best-effort so the multi-distro path stays compatible.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        sudo \
-        tini \
-        && \
+    apt-get install -y --no-install-recommends sudo && \
+    (apt-get install -y --no-install-recommends tini \
+        || echo "tini not packaged for this distro (xenial?), runtime will use bash as PID 1"); \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
