@@ -16,13 +16,37 @@ jobs:
   call-docker-build:
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          # default
+          - { name: 'noetic-desktop-full',  base: 'osrf/ros:noetic-desktop-full-focal' }
+          - { name: 'noetic-ros-base',      base: 'ros:noetic-ros-base-focal' }
+          - { name: 'kinetic-desktop-full', base: 'osrf/ros:kinetic-desktop-full-xenial' }
+          - { name: 'kinetic-ros-base',     base: 'ros:kinetic-ros-base-xenial' }
+    name: build (${{ matrix.target.name }})
     uses: ycpss91255-docker/template/.github/workflows/build-worker.yaml@v0.19.0
     with:
-      image_name: osrf_ros_noetic
+      image_name: ros_distro
       build_args: |
-        ROS_DISTRO=noetic
-        ROS_TAG=desktop-full
-        UBUNTU_CODENAME=focal
+        BASE_IMAGE=${{ matrix.target.base }}
+
+  # Stable-named aggregator so branch protection's required-status-check
+  # doesn't have to enumerate every matrix entry. Branch protection
+  # references `ci-passed`; matrix shape can change without re-configuring
+  # protection.
+  ci-passed:
+    needs: call-docker-build
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    steps:
+      - run: |
+          if [ "${{ needs.call-docker-build.result }}" != "success" ]; then
+            echo "One or more matrix builds failed (result=${{ needs.call-docker-build.result }})"
+            exit 1
+          fi
+          echo "All matrix builds passed"
 
   call-release:
     needs: call-docker-build
@@ -31,5 +55,5 @@ jobs:
       contents: write
     uses: ycpss91255-docker/template/.github/workflows/release-worker.yaml@v0.19.0
     with:
-      archive_name_prefix: osrf_ros_noetic
+      archive_name_prefix: ros_distro
     secrets: inherit

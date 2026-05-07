@@ -43,10 +43,10 @@ ENV NVIDIA_DRIVER_CAPABILITIES="all"
 SHELL ["/bin/bash", "-x", "-euo", "pipefail", "-c"]
 
 # Sanity-check ROS_DISTRO inherited from BASE_IMAGE.
-RUN [ -n "${ROS_DISTRO:-}" ] && [ -d "/opt/ros/${ROS_DISTRO}" ] || { \
+RUN if [ -z "${ROS_DISTRO:-}" ] || [ ! -d "/opt/ros/${ROS_DISTRO}" ]; then \
         echo "FATAL: ROS_DISTRO unset or /opt/ros/${ROS_DISTRO:-?} missing -- is BASE_IMAGE a ros: / osrf/ros: image?" >&2; \
         exit 1; \
-    }
+    fi
 
 # Setup users and groups
 RUN if getent group "${GID}" >/dev/null; then \
@@ -116,9 +116,12 @@ RUN apt-get update && \
         python3-dev \
         python3-setuptools \
         bash-completion \
-        # GPU/OpenGL (Intel + software fallback; harmless on headless variants)
+        # GPU/OpenGL (Intel + software fallback; harmless on headless variants).
+        # `libgl1-mesa-glx` was removed in Ubuntu 24.04 noble; `libgl1` exists
+        # on every supported Ubuntu (xenial / focal / jammy / noble) so the
+        # multi-distro build path stays compatible.
         libgl1-mesa-dri \
-        libgl1-mesa-glx \
+        libgl1 \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -152,8 +155,6 @@ COPY --chmod=0755 "./${ENTRYPOINT_FILE}" "/entrypoint.sh"
 COPY --chown="${USER}":"${GROUP}" --chmod=0755 "${CONFIG_SRC}" "${CONFIG_DIR}"
 
 USER "${USER}"
-
-RUN "${CONFIG_DIR}"/pip/setup.sh
 
 # Setup shell, terminator, tmux
 RUN cat "${CONFIG_DIR}"/shell/bashrc >> "${HOME}/.bashrc" && \
@@ -208,14 +209,46 @@ USER "${USER}"
 
 RUN bats /smoke_test/
 
+############################## build (downstream contract slot) ##############################
+# Empty no-op in upstream ros_distro -- compile your packages here and put the
+# install tree at /opt/ros/install/ so the runtime stage below can COPY it.
+#
+# Downstream usage (in a fork / consumer repo, override this stage):
+#
+#   FROM devel AS build
+#
+#   ARG USER
+#   ARG GROUP
+#
+#   COPY --chown=${USER}:${GROUP} src/ /home/${USER}/work/src/
+#
+#   RUN source /opt/ros/${ROS_DISTRO}/setup.bash && \
+#       cd /home/${USER}/work && \
+#       catkin_make_isolated --install --install-space /opt/ros/install \
+#                            --use-ninja \
+#                            -DCMAKE_BUILD_TYPE=Release
+#
+# `runtime` below `COPY --from=build /opt/ros/install/` so the production
+# image only contains binaries, not src/ / .o / catkin_ws build directory.
+FROM devel AS build
+
+ARG USER
+ARG GROUP
+
+USER root
+RUN mkdir -p /opt/ros/install && \
+    chown -R "${USER}":"${GROUP}" /opt/ros/install
+USER "${USER}"
+
 ############################## runtime-base ##############################
 FROM sys AS runtime-base
 
+# tini is missing from xenial's archive (kinetic), but available on focal+;
+# install best-effort so the multi-distro path stays compatible.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        sudo \
-        tini \
-        && \
+    apt-get install -y --no-install-recommends sudo && \
+    (apt-get install -y --no-install-recommends tini \
+        || echo "tini not packaged for this distro (xenial?), runtime will use bash as PID 1"); \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -224,8 +257,8 @@ FROM runtime-base AS runtime
 
 ARG USER
 
-# Install only the ROS packages required to run your nodes.
-# Customize this list for your application.
+# Baseline ROS runtime libs. Downstream can drop these if their `build`
+# stage already pulls in the right deps via rosdep + COPY.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         "ros-${ROS_DISTRO}-rospy" \
@@ -233,6 +266,11 @@ RUN apt-get update && \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
+
+# Pull in the install tree produced by the `build` stage. Empty in upstream
+# (build is a no-op); downstream's overridden `build` populates this with
+# their compiled packages.
+COPY --from=build /opt/ros/install/ /opt/ros/install/
 
 COPY --chmod=0755 script/entrypoint.sh /entrypoint.sh
 

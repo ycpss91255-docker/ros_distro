@@ -25,4 +25,18 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Uses the `TEST_TOOLS_IMAGE` Dockerfile pattern from template v0.18.0+
   (no inline `bats-src` / `bats-extensions` / `lint-tools` stages); the
   saving versus the legacy four-repo split is roughly -100 lines net.
+- **`build` stage between `devel` and `runtime`**: contract slot for
+  downstream consumers to compile their packages. Empty no-op upstream
+  (just `mkdir /opt/ros/install`); downstream forks override
+  `FROM devel AS build` with `catkin_make_isolated --install-space
+  /opt/ros/install` (or equivalent). `runtime` `COPY --from=build
+  /opt/ros/install/` so the production image contains only binaries,
+  no `src/` / build artifacts. README's Architecture section documents
+  the full layer cake (`sys → base → devel → {test, build}` and
+  `sys → runtime-base → runtime ← COPY from build`).
+- **CI build matrix (4 entries / push)**: `noetic-desktop-full` (osrf,
+  default), `noetic-ros-base` (ros:, cross-registry), `kinetic-desktop-full`
+  (osrf), `kinetic-ros-base` (ros:). Validates the multi-distro promise
+  on every push without burning CI on rarely-used variants (`ros-core`
+  intentionally excluded -- the smoke suite half-skips on it).
 - Template subtree pinned at v0.19.0.
