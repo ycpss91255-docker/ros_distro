@@ -1,26 +1,17 @@
 # ros_distro -- ROS 1 Multi-distro Docker Environment
 
-**[English](README.md)** | **[繁體中文](doc/README.zh-TW.md)** | **[简体中文](doc/README.zh-CN.md)** | **[日本語](doc/README.ja.md)**
+[![CI](https://github.com/ycpss91255-docker/ros_distro/actions/workflows/main.yaml/badge.svg)](https://github.com/ycpss91255-docker/ros_distro/actions/workflows/main.yaml)
 
-> **TL;DR** — One-command ROS 1 containerized dev environment. Single
-> Dockerfile, single `BASE_IMAGE` ARG: switch between Noetic / Kinetic
-> and `ros:` (custom base, headless) / `osrf/ros:` (desktop / desktop-full)
-> at build time. Default is `osrf/ros:noetic-desktop-full-focal`. Replaces
-> the four legacy repos `ros_noetic`, `ros_kinetic`, `osrf_ros_noetic`,
-> `osrf_ros_kinetic`.
->
-> ```bash
-> ./build.sh && ./run.sh                                                  # default: noetic desktop-full
-> ./build.sh --build-arg BASE_IMAGE=ros:noetic-ros-base-focal             # noetic headless
-> ./build.sh --build-arg BASE_IMAGE=osrf/ros:kinetic-desktop-full-xenial  # kinetic with GUI
-> ```
->
-> See [Build targets](#build-targets) for the full list.
+One-command ROS 1 containerized dev environment. Single Dockerfile, single `BASE_IMAGE` ARG to switch between Noetic / Kinetic and `ros:` (headless) / `osrf/ros:` (desktop / desktop-full) at build time.
+
+**[English](README.md)** | **[繁體中文](doc/README.zh-TW.md)** | **[简体中文](doc/README.zh-CN.md)** | **[日本語](doc/README.ja.md)**
 
 ---
 
 ## Table of Contents
 
+- [TL;DR](#tldr)
+- [Overview](#overview)
 - [Features](#features)
 - [Quick Start](#quick-start)
 - [Build targets](#build-targets)
@@ -33,6 +24,27 @@
 - [Updating docker\_template](#updating-template)
 
 ---
+
+## TL;DR
+
+```bash
+./build.sh && ./run.sh                                                  # default: noetic desktop-full
+./build.sh --build-arg BASE_IMAGE=ros:noetic-ros-base-focal             # noetic headless
+./build.sh --build-arg BASE_IMAGE=osrf/ros:kinetic-desktop-full-xenial  # kinetic with GUI
+```
+
+See [Build targets](#build-targets) for the full list.
+
+## Overview
+
+`ros_distro` consolidates four legacy single-distro repos (`ros_noetic`,
+`ros_kinetic`, `osrf_ros_noetic`, `osrf_ros_kinetic`) into one Dockerfile
+parameterized by `BASE_IMAGE`. The four legacy repos shared 90% of their
+Dockerfile and diverged only on the `FROM` line, so collapsing them
+removes a long-standing maintenance burden: a single fix in `sys` /
+`base` / `devel` now reaches every ROS 1 distro and registry combination
+at once. Default is `osrf/ros:noetic-desktop-full-focal`; CI exercises a
+4-entry matrix (noetic / kinetic, `ros:` / `osrf/ros:`) on every push.
 
 ## Features
 
@@ -366,34 +378,30 @@ See [TEST.md](doc/test/TEST.md) for details.
 ## Directory Structure
 
 ```text
-osrf_ros_noetic/
-├── compose.yaml                 # Docker Compose definition
-├── Dockerfile                   # Multi-stage build
-├── build.sh                     # Build script (runs from any directory)
-├── run.sh                       # Run script (runs from any directory)
-├── exec.sh                      # Enter running container
-├── stop.sh                      # Stop running container
-├── .env.example                 # Environment variable template
-├── .hadolint.yaml               # Hadolint ignore rules
+ros_distro/
+├── compose.yaml                              # Docker Compose definition
+├── Dockerfile                                # Multi-stage build
+├── build.sh -> template/script/docker/build.sh   # Symlink
+├── run.sh -> template/script/docker/run.sh       # Symlink
+├── exec.sh -> template/script/docker/exec.sh     # Symlink
+├── stop.sh -> template/script/docker/stop.sh     # Symlink
+├── Makefile -> template/script/docker/Makefile   # Symlink
+├── .env.example                              # IMAGE_NAME fallback
+├── .hadolint.yaml                            # Hadolint ignore rules
+├── setup.conf                                # Repo override (selects BASE_IMAGE etc.)
 ├── script/
-│   └── entrypoint.sh            # Container entrypoint
-├── doc/                         # Translated READMEs
+│   └── entrypoint.sh                         # Container entrypoint
+├── doc/                                      # Translated READMEs + TEST + CHANGELOG
 │   ├── README.zh-TW.md
 │   ├── README.zh-CN.md
-│   └── README.ja.md
-├── test/
-│   └── smoke/              # Bats environment tests
-│       ├── ros_env.bats
-│       ├── script_help.bats
-│       └── test_helper.bash
-├── .github/workflows/           # CI/CD
-│   ├── main.yaml                # Main pipeline
-│   ├── build-worker.yaml        # Docker build + smoke test
-│   └── release-worker.yaml      # GitHub Release
-└── template/         # git subtree (v1.4.0)
-    └── src/
-        ├── setup.sh             # System detection + .env generation
-        └── config/              # shell/pip/terminator/tmux config
+│   ├── README.ja.md
+│   ├── test/TEST.md
+│   └── changelog/CHANGELOG.md
+├── test/smoke/                               # Repo-specific Bats environment tests
+│   └── ros_env.bats
+├── .github/workflows/
+│   └── main.yaml                             # CI (calls template reusable workflows)
+└── template/                                 # git subtree (version pinned in template/.version)
 ```
 
 ## Updating template
