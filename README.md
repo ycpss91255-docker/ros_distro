@@ -1,5 +1,7 @@
 # ros_distro -- ROS 1 Multi-distro Docker Environment
 
+[![CI](https://github.com/ycpss91255-docker/ros_distro/actions/workflows/main.yaml/badge.svg)](https://github.com/ycpss91255-docker/ros_distro/actions/workflows/main.yaml) [![License](https://img.shields.io/badge/License-Apache--2.0-blue?style=flat-square)](./LICENSE)
+
 [![CI](https://github.com/ycpss91255-docker/ros_distro/actions/workflows/main.yaml/badge.svg)](https://github.com/ycpss91255-docker/ros_distro/actions/workflows/main.yaml)
 
 One-command ROS 1 containerized dev environment. Single Dockerfile, single `BASE_IMAGE` ARG to switch between Noetic / Kinetic and `ros:` (headless) / `osrf/ros:` (desktop / desktop-full) at build time.
