@@ -77,7 +77,7 @@ jobs:
           - { name: 'kinetic-desktop-full', base: 'osrf/ros:kinetic-desktop-full-xenial', is_latest: false }
           - { name: 'kinetic-ros-base',     base: 'ros:kinetic-ros-base-xenial',          is_latest: false }
     name: publish (${{ matrix.target.name }})
-    uses: ycpss91255-docker/template/.github/workflows/publish-worker.yaml@v0.20.0
+    uses: ycpss91255-docker/base/.github/workflows/publish-worker.yaml@v0.20.0
     with:
       image_name: ros_distro
       tag_suffix: "-${{ matrix.target.name }}"
