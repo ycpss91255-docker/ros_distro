@@ -56,7 +56,7 @@ at once. Default is `osrf/ros:noetic-desktop-full-focal`; CI exercises a
 - **Smoke Test**: Bats tests run automatically during build; distro- and variant-agnostic (GUI-tool tests skip cleanly on `ros-base` / `ros-core`).
 - **Docker Compose**: single `compose.yaml` manages all targets.
 - **Auto-detection**: `setup.sh` auto-detects UID/GID/workspace, generates `.env`.
-- **Modular config**: shell config managed via [template](https://github.com/ycpss91255-docker/template) subtree.
+- **Modular config**: shell config managed via [template](https://github.com/ycpss91255-docker/base) subtree.
 - **X11 forwarding**: supports GUI applications when using a desktop variant.
 
 > **Note**: `osrf/ros:*` variants ship amd64 binaries only. For arm64 (Jetson, Raspberry Pi), pick a `ros:` variant — that registry publishes both architectures.
@@ -176,7 +176,7 @@ my_robot_project/
 │   ├── run.sh
 │   ├── compose.yaml
 │   ├── Dockerfile
-│   └── template/
+│   └── .base/
 └── ...
 ```
 
@@ -213,7 +213,7 @@ git subtree pull --prefix=docker/osrf_ros_noetic \
 > **Notes**:
 > - Local modifications are tracked by git normally.
 > - `subtree pull` may produce merge conflicts if upstream changed the same files you modified locally.
-> - Do **not** modify `template/` inside the subtree — it is managed by the env repo's own subtree.
+> - Do **not** modify `.base/` inside the subtree — it is managed by the env repo's own subtree.
 
 ## Configuration
 
@@ -383,11 +383,11 @@ See [TEST.md](doc/test/TEST.md) for details.
 ros_distro/
 ├── compose.yaml                              # Docker Compose definition
 ├── Dockerfile                                # Multi-stage build
-├── build.sh -> template/script/docker/build.sh   # Symlink
-├── run.sh -> template/script/docker/run.sh       # Symlink
-├── exec.sh -> template/script/docker/exec.sh     # Symlink
-├── stop.sh -> template/script/docker/stop.sh     # Symlink
-├── Makefile -> template/script/docker/Makefile   # Symlink
+├── build.sh -> .base/script/docker/build.sh   # Symlink
+├── run.sh -> .base/script/docker/run.sh       # Symlink
+├── exec.sh -> .base/script/docker/exec.sh     # Symlink
+├── stop.sh -> .base/script/docker/stop.sh     # Symlink
+├── Makefile -> .base/script/docker/Makefile   # Symlink
 ├── .env.example                              # IMAGE_NAME fallback
 ├── .hadolint.yaml                            # Hadolint ignore rules
 ├── setup.conf                                # Repo override (selects BASE_IMAGE etc.)
@@ -403,12 +403,12 @@ ros_distro/
 │   └── ros_env.bats
 ├── .github/workflows/
 │   └── main.yaml                             # CI (calls template reusable workflows)
-└── template/                                 # git subtree (version pinned in template/.version)
+└── .base/                                 # git subtree (version pinned in .base/.version)
 ```
 
 ## Updating template
 
 ```bash
 git subtree pull --prefix=template \
-    https://github.com/ycpss91255-docker/template.git v1.4.0 --squash
+    https://github.com/ycpss91255-docker/base.git v1.4.0 --squash
 ```
