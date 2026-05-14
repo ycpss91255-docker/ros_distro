@@ -26,7 +26,7 @@ jobs:
           - { name: 'kinetic-desktop-full', base: 'osrf/ros:kinetic-desktop-full-xenial' }
           - { name: 'kinetic-ros-base',     base: 'ros:kinetic-ros-base-xenial' }
     name: build (${{ matrix.target.name }})
-    uses: ycpss91255-docker/base/.github/workflows/build-worker.yaml@v0.27.0
+    uses: ycpss91255-docker/base/.github/workflows/build-worker.yaml@v0.28.1
     with:
       image_name: ros_distro
       build_args: |
@@ -91,7 +91,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
-    uses: ycpss91255-docker/base/.github/workflows/release-worker.yaml@v0.27.0
+    uses: ycpss91255-docker/base/.github/workflows/release-worker.yaml@v0.28.1
     with:
       archive_name_prefix: ros_distro
     secrets: inherit
